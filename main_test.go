@@ -8,7 +8,43 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestCafeSearch(t *testing.T) {
+	handler := http.HandlerFunc(mainHandle)
+
+	city := "moscow"
+
+	requests := []struct {
+		search    string // передаваемое значение search
+		wantCount int    // ожидаемое количество кафе в ответе
+	}{
+		{"фасоль", 0},
+		{"кофе", 2},
+		{"вилка", 1},
+	}
+
+	for _, v := range requests {
+		response := httptest.NewRecorder()
+
+		reqString := fmt.Sprintf("/cafe?search=%s&city=%s", v.search, city)
+
+		req := httptest.NewRequest("GET", reqString, nil)
+		handler.ServeHTTP(response, req)
+
+		require.Equal(t, http.StatusOK, response.Code)
+		if response.Body.String() == "" {
+			assert.Equal(t, v.wantCount, 0)
+			continue
+		}
+		cafes := strings.Split(response.Body.String(), ",")
+		for _, cafe := range cafes {
+			require.Equal(t, true, strings.Contains(strings.ToLower(cafe), strings.ToLower(v.search)))
+		}
+		assert.Equal(t, v.wantCount, len(cafes))
+	}
+}
 
 func TestCafeCount(t *testing.T) {
 	handler := http.HandlerFunc(mainHandle)
@@ -33,7 +69,7 @@ func TestCafeCount(t *testing.T) {
 			req := httptest.NewRequest("GET", reqString, nil)
 			handler.ServeHTTP(response, req)
 
-			assert.Equal(t, http.StatusOK, response.Code)
+			require.Equal(t, http.StatusOK, response.Code)
 			if v.count == 0 {
 				assert.Equal(t, "", response.Body.String())
 				continue
